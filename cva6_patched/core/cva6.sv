@@ -646,6 +646,26 @@ module cva6
   logic dcache_commit_wbuffer_empty;
   logic dcache_commit_wbuffer_not_ni;
 
+  // ===================== ILA PROBE  D1 =====================
+  // L1 D-cache LOAD port.  load_store_unit.sv:558 wires i_load_unit to
+  // dcache_req_ports[1] (port 0 = PTW, port 2 = store), so this is the load
+  // path and nothing else.
+  //
+  // This point exists because an L1-D HIT produces NO AXI traffic anywhere --
+  // it is invisible at every crossbar and cache probe, so it can only be
+  // measured inside the core.
+  //
+  // data_rid matches a response to its request: the write-through D$ is
+  // non-blocking and responses from different ports are not ordered.
+  // kill_req is not optional -- the non-idempotent retry path kills requests,
+  // and without it a killed request looks like an unanswered one.
+  (* mark_debug = "true" *) logic dbg_d1_req, dbg_d1_gnt, dbg_d1_rvalid, dbg_d1_kill;
+  assign dbg_d1_req    = dcache_req_ports_ex_cache[1].data_req;
+  assign dbg_d1_kill   = dcache_req_ports_ex_cache[1].kill_req;
+  assign dbg_d1_gnt    = dcache_req_ports_cache_ex[1].data_gnt;
+  assign dbg_d1_rvalid = dcache_req_ports_cache_ex[1].data_rvalid;
+  // =========================================================
+
   //RVFI
   lsu_ctrl_t rvfi_lsu_ctrl;
   logic [CVA6Cfg.PLEN-1:0] rvfi_mem_paddr;

@@ -268,7 +268,7 @@ module axi_dw_upsizer #(
     .empty_o(/* Unused */     )
   );
 
-  // Same-ID admission control.  [PATCHED -- see AGENT_NOTES_FP16_4LANE.md 53]
+  // Same-ID admission control.  [PATCHED]
   //
   // ORIGINAL: any busy context holding this ID blocked the incoming request for
   // the WHOLE transaction lifetime, and the request was routed to that busy

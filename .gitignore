@@ -25,6 +25,11 @@ site/
 *.a
 *.dtb
 sw/deps/.patched
+*.md
+*.png
+*.csv
+
+
 
 # Test models
 target/sim/models

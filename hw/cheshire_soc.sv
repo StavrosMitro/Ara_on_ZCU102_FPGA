@@ -525,6 +525,21 @@ module cheshire_soc import cheshire_pkg::*; #(
       axi_llc_cut_rsp = axi_llc_remap_rsp;
     end
 
+    // ===================== ILA PROBE  L2 =====================
+    // LLC slave port. With L2 and L3 captured together, an AR here followed
+    // by an AR at L3 before its R returns is a MISS; otherwise a HIT -- so
+    // hit/miss is classified from the trace, not assumed from the binary.
+    // No ar.id is probed: the sd+fence+csrr barrier in the test binaries
+    // guarantees ONE outstanding transaction, and the 16 B (single cache
+    // line) test guarantees one AR and one R_LAST per measurement.
+    (* mark_debug = "true" *) logic dbg_l2_arv, dbg_l2_arr, dbg_l2_rv, dbg_l2_rr, dbg_l2_rl;
+    assign dbg_l2_arv = axi_llc_remap_req.ar_valid;
+    assign dbg_l2_arr = axi_llc_remap_rsp.ar_ready;
+    assign dbg_l2_rv  = axi_llc_remap_rsp.r_valid;
+    assign dbg_l2_rr  = axi_llc_remap_req.r_ready;
+    assign dbg_l2_rl  = axi_llc_remap_rsp.r.last;
+    // =========================================================
+
     axi_llc_reg_wrap #(
       .SetAssociativity ( Cfg.LlcSetAssoc  ),
       .NumLines         ( Cfg.LlcNumLines  ),
@@ -2102,5 +2117,63 @@ module cheshire_soc import cheshire_pkg::*; #(
 
   if (Cfg.Ara && (NumIntHarts > 1))
     $error("Ara is only compatible with a single-core architecture.");
+
+  ///////////////////////////////////////////////////////////////////////////
+  //  ILA PROBES -- memory-hierarchy latency decomposition                 //
+  //                                                                       //
+  //  Added 2026-09-10 to measure, rather than infer, the split between     //
+  //  Ara/CVA6 dispatch overhead and the memory system.  Six points:        //
+  //                                                                       //
+  //    D1  cva6.sv, dcache load port      L1-D hit (no AXI traffic at all) //
+  //    C1  CVA6 at the crossbar input                                      //
+  //    A1  Ara  at the crossbar input                                      //
+  //    X   crossbar OUTPUT to the LLC     A1->X and C1->X = THE CROSSBAR   //
+  //    L2  LLC slave port                 X->L2 = atomics + axi_cut        //
+  //    L3  LLC master port                AR->R_LAST here = DDR            //
+  //                                                                       //
+  //  Predicted from the RTL: crossbar 2 cycles each direction (LatencyMode //
+  //  CUT_ALL_PORTS sets every demux AND mux spill), atomics+cut 1 each     //
+  //  direction, LLC pipeline 8.  C1->X minus A1->X is the cost of          //
+  //  axi_id_serialize, which sits on CVA6's path and not on Ara's.         //
+  //                                                                       //
+  //  Remove by deleting these blocks; common.tcl's insert_ilas returns     //
+  //  immediately when no mark_debug nets remain, so nothing else changes.  //
+  //  Pre-probe snapshot: /home/stavros/bitstreams/probes_snapshot_*/       //
+  ///////////////////////////////////////////////////////////////////////////
+
+  // ---- C1: CVA6 at the crossbar input (after axi_id_serialize) ----------
+  (* mark_debug = "true" *) logic dbg_c1_arv, dbg_c1_arr, dbg_c1_rv, dbg_c1_rr, dbg_c1_rl;
+  assign dbg_c1_arv = axi_in_req[AxiIn.cores[0]].ar_valid;
+  assign dbg_c1_arr = axi_in_rsp[AxiIn.cores[0]].ar_ready;
+  assign dbg_c1_rv  = axi_in_rsp[AxiIn.cores[0]].r_valid;
+  assign dbg_c1_rr  = axi_in_req[AxiIn.cores[0]].r_ready;
+  assign dbg_c1_rl  = axi_in_rsp[AxiIn.cores[0]].r.last;
+
+  // ---- A1: Ara at the crossbar input ------------------------------------
+  (* mark_debug = "true" *) logic dbg_a1_arv, dbg_a1_arr, dbg_a1_rv, dbg_a1_rr, dbg_a1_rl;
+  assign dbg_a1_arv = axi_in_req[AxiIn.ara].ar_valid;
+  assign dbg_a1_arr = axi_in_rsp[AxiIn.ara].ar_ready;
+  assign dbg_a1_rv  = axi_in_rsp[AxiIn.ara].r_valid;
+  assign dbg_a1_rr  = axi_in_req[AxiIn.ara].r_ready;
+  assign dbg_a1_rl  = axi_in_rsp[AxiIn.ara].r.last;
+
+  // ---- X: crossbar OUTPUT toward the LLC, before the atomics shim -------
+  //      A1.AR -> X.AR is the crossbar alone: demux spill + mux spill.
+  (* mark_debug = "true" *) logic dbg_x_arv, dbg_x_arr, dbg_x_rv, dbg_x_rr, dbg_x_rl;
+  assign dbg_x_arv = axi_out_req[AxiOut.llc].ar_valid;
+  assign dbg_x_arr = axi_out_rsp[AxiOut.llc].ar_ready;
+  assign dbg_x_rv  = axi_out_rsp[AxiOut.llc].r_valid;
+  assign dbg_x_rr  = axi_out_req[AxiOut.llc].r_ready;
+  assign dbg_x_rl  = axi_out_rsp[AxiOut.llc].r.last;
+
+  // ---- L3: LLC master port = the DRAM path ------------------------------
+  //      Every AR here is a refill or an eviction, so no classification is
+  //      needed: AR -> R_LAST at this point IS the DDR latency.
+  (* mark_debug = "true" *) logic dbg_l3_arv, dbg_l3_arr, dbg_l3_rv, dbg_l3_rr, dbg_l3_rl;
+  assign dbg_l3_arv = axi_llc_mst_req_o.ar_valid;
+  assign dbg_l3_arr = axi_llc_mst_rsp_i.ar_ready;
+  assign dbg_l3_rv  = axi_llc_mst_rsp_i.r_valid;
+  assign dbg_l3_rr  = axi_llc_mst_req_o.r_ready;
+  assign dbg_l3_rl  = axi_llc_mst_rsp_i.r.last;
 
 endmodule
