@@ -122,6 +122,61 @@ toolchain-llvm-rt: Makefile toolchain-llvm-main toolchain-llvm-newlib
 	$(CMAKE) --build build --target install && \
 	ln -s $(LLVM_INSTALL_DIR)/lib/linux $(LLVM_INSTALL_DIR)/lib/clang/16/lib
 
+# Libraries for the FPGA bitstreams, which have no FP64 (CVA6 RVD=0): newlib
+# and compiler-rt builtins for -mabi=lp64 (soft double). apps/common/runtime.mk
+# links the .fpga16 targets against these instead of the lp64d defaults above,
+# which contain hardware FP64 instructions that trap on the board.
+NEWLIB_LP64_DIR ?= $(LLVM_INSTALL_DIR)/riscv64-unknown-elf/lib/rv64imac/lp64
+RT_FPGA16_DIR   ?= $(INSTALL_DIR)/riscv-llvm-fp16only-rt
+NOFP64_BUILD    ?= $(ROOT_DIR)/toolchain/build-nofp64
+
+.PHONY: toolchain-llvm-nofp64 toolchain-llvm-newlib-lp64 toolchain-llvm-rt-fpga16
+toolchain-llvm-nofp64: toolchain-llvm-newlib-lp64 toolchain-llvm-rt-fpga16
+
+toolchain-llvm-newlib-lp64: Makefile
+	rm -rf $(NOFP64_BUILD)/newlib && mkdir -p $(NOFP64_BUILD)/newlib && cd $(NOFP64_BUILD)/newlib && \
+	$(ROOT_DIR)/toolchain/newlib/configure --prefix=$(NOFP64_BUILD)/newlib-install \
+	--target=riscv64-unknown-elf \
+	CC_FOR_TARGET="$(LLVM_INSTALL_DIR)/bin/clang -march=rv64imac -mabi=lp64 -mno-relax -mcmodel=medany -Wno-error-implicit-function-declaration -Wno-error=int-conversion" \
+	AS_FOR_TARGET=$(LLVM_INSTALL_DIR)/bin/llvm-as \
+	AR_FOR_TARGET=$(LLVM_INSTALL_DIR)/bin/llvm-ar \
+	LD_FOR_TARGET=$(LLVM_INSTALL_DIR)/bin/llvm-ld \
+	RANLIB_FOR_TARGET=$(LLVM_INSTALL_DIR)/bin/llvm-ranlib && \
+	$(MAKE) && $(MAKE) install
+	mkdir -p $(NEWLIB_LP64_DIR)
+	find $(NOFP64_BUILD)/newlib-install/riscv64-unknown-elf/lib -maxdepth 1 -type f -exec cp {} $(NEWLIB_LP64_DIR)/ \;
+
+toolchain-llvm-rt-fpga16: Makefile
+	rm -rf $(NOFP64_BUILD)/compiler-rt && mkdir -p $(NOFP64_BUILD)/compiler-rt && cd $(NOFP64_BUILD)/compiler-rt && \
+	$(CMAKE) $(ROOT_DIR)/toolchain/riscv-llvm/compiler-rt -G Ninja \
+	-DCMAKE_INSTALL_PREFIX=$(RT_FPGA16_DIR) \
+	-DCMAKE_C_COMPILER_TARGET="riscv64-unknown-elf" \
+	-DCMAKE_ASM_COMPILER_TARGET="riscv64-unknown-elf" \
+	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
+	-DCOMPILER_RT_BAREMETAL_BUILD=ON \
+	-DCOMPILER_RT_BUILD_BUILTINS=ON \
+	-DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
+	-DCOMPILER_RT_BUILD_MEMPROF=OFF \
+	-DCOMPILER_RT_BUILD_PROFILE=OFF \
+	-DCOMPILER_RT_BUILD_SANITIZERS=OFF \
+	-DCOMPILER_RT_BUILD_XRAY=OFF \
+	-DCOMPILER_RT_BUILD_CTX_PROFILE=OFF \
+	-DCMAKE_C_COMPILER_WORKS=1 \
+	-DCMAKE_CXX_COMPILER_WORKS=1 \
+	-DCMAKE_SIZEOF_VOID_P=4 \
+	-DCMAKE_C_COMPILER="$(LLVM_INSTALL_DIR)/bin/clang" \
+	-DCMAKE_C_FLAGS="-march=rv64imac_zve64f_zvfh -mabi=lp64 -mno-relax -mcmodel=medany" \
+	-DCMAKE_ASM_FLAGS="-march=rv64imac_zve64f_zvfh -mabi=lp64 -mno-relax -mcmodel=medany" \
+	-DCMAKE_AR=$(LLVM_INSTALL_DIR)/bin/llvm-ar \
+	-DCMAKE_NM=$(LLVM_INSTALL_DIR)/bin/llvm-nm \
+	-DCMAKE_RANLIB=$(LLVM_INSTALL_DIR)/bin/llvm-ranlib \
+	-DLLVM_CONFIG_PATH=$(LLVM_INSTALL_DIR)/bin/llvm-config && \
+	$(CMAKE) --build . --target install
+	# -resource-dir: the lp64 builtins, plus clang's own intrinsic headers.
+	rm -rf $(RT_FPGA16_DIR)/resource-dir && mkdir -p $(RT_FPGA16_DIR)/resource-dir
+	ln -s $$($(LLVM_INSTALL_DIR)/bin/clang -print-resource-dir)/include $(RT_FPGA16_DIR)/resource-dir/include
+	ln -s $$(dirname $$(find $(RT_FPGA16_DIR)/lib -name 'libclang_rt.builtins*.a' | head -1)) $(RT_FPGA16_DIR)/resource-dir/lib
+
 # Spike
 .PHONY: riscv-isa-sim riscv-isa-sim-mod
 riscv-isa-sim: ${ISA_SIM_INSTALL_DIR} ${ISA_SIM_MOD_INSTALL_DIR}

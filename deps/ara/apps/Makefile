@@ -1017,13 +1017,18 @@ endef
 # IntFmtConfig and the cast unit returns the inactive format's all-ones
 # DONT_CARE. fcvt.s.lu yields 2^32 and fcvt.s.l yields -1.0 for ANY input, with
 # no trap and no flag. This silently zeroed fc_layer16only's weight gradients on
-# every training step (AGENT_NOTES_FP16_4LANE.md 46.8) until the (uint32_t)
+# every training step until the (uint32_t)
 # narrowing at fmatmul_tn.c:120. The guard below stops that reappearing.
 # Remove it once the hardware is fixed (RVD=1, or the cvfpu INT64 patch).
 # Apps listed here contain the instruction ON PURPOSE, to test the defect.
-INT64CONV_EXEMPT := vec_test fpubug
+INT64CONV_EXEMPT :=
 
-FP16ONLY_APPS := vggnet16 conv_layer16only fc_layer16only dma_test vec_test fpubug memlat dma_test64 memmatrix latprobe fconv_cmp vrare vrare2 vrare3 vrare4 sldprobe
+# The .fpga16 target is the no-FP64 build (rv64imac_zve64f_zvfh / lp64, see
+# common/runtime.mk), so it serves FP32 apps as well. FP16 apps run on every
+# bitstream; the FP32 apps execute e32 vector FP and need an fpu=32 or
+# fpu=1632 bitstream.
+FP16ONLY_APPS := vggnet16 conv_layer16only fc_layer16only memlat memmatrix latprobe fconv_cmp sldprobe
+FP16ONLY_APPS += fc_layer32 conv_layer32 vggnet
 $(foreach app,$(FP16ONLY_APPS),$(eval $(call app_compile_template_fpga16,$(app))))
 
 # Each app's own -Wa,-I (and vggnet16's extra -I) override RISCV_CCFLAGS_FPGA
@@ -1035,6 +1040,10 @@ bin/vggnet16.fpga16:         RISCV_CCFLAGS_FPGA16 += -I$(CURDIR)/vggnet16/lib
 bin/vggnet16.fpga16:         RISCV_CCFLAGS_FPGA16 += -Wa,-I$(CURDIR)/vggnet16
 bin/conv_layer16only.fpga16: RISCV_CCFLAGS_FPGA16 += -Wa,-I$(CURDIR)/conv_layer16only
 bin/fc_layer16only.fpga16:   RISCV_CCFLAGS_FPGA16 += -Wa,-I$(CURDIR)/fc_layer16only
+bin/vggnet.fpga16:           RISCV_CCFLAGS_FPGA16 += -I$(CURDIR)/vggnet/lib
+bin/vggnet.fpga16:           RISCV_CCFLAGS_FPGA16 += -Wa,-I$(CURDIR)/vggnet
+bin/conv_layer32.fpga16:     RISCV_CCFLAGS_FPGA16 += -Wa,-I$(CURDIR)/conv_layer32
+bin/fc_layer32.fpga16:       RISCV_CCFLAGS_FPGA16 += -Wa,-I$(CURDIR)/fc_layer32
 
 define app_compile_template
 bin/$1$(BIN_SUFFIX): $1/data.S.o $(addsuffix .o, $(call find_app_sources,$1)) $(RUNTIME_LLVM) linker_script

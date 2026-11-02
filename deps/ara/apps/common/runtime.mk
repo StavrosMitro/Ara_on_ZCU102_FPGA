@@ -144,8 +144,9 @@ RISCV_CCFLAGS_FPGA   ?= $(RISCV_FLAGS) $(FPGA_CCFLAGS) -ffunction-sections -fdat
 # LLVM_FLAGS down, never inheriting RISCV_CCFLAGS_FPGA's own -march, rather
 # than appending to it.
 #
-# Only used by vggnet16/conv_layer16only/fc_layer16only via the .fpga16
-# rules/template below -- every other app's normal .fpga build is untouched.
+# Used by the apps in FP16ONLY_APPS (apps/Makefile) via the .fpga16 template:
+# the FP16 apps and the FP32 apps fc_layer32/conv_layer32/vggnet. Every other
+# app's normal .fpga build is untouched.
 #
 # -resource-dir redirects clang to an isolated compiler-rt builtins archive
 # (libclang_rt.builtins-riscv64.a) built for this same march/abi -- the

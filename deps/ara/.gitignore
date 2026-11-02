@@ -42,3 +42,4 @@ docs/source/_templates/
 .claude/
 .codex/
 .agents/
+toolchain/build-nofp64/
