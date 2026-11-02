@@ -25,9 +25,6 @@ site/
 *.a
 *.dtb
 sw/deps/.patched
-*.md
-*.png
-*.csv
 
 
 
@@ -44,47 +41,41 @@ target/sim/vsim/vsim.wlf
 target/sim/vsim/work/
 
 # Xilinx generated files
-target/xilinx/build
-target/xilinx/out
+target/xilinx/build/
+target/xilinx/out/
+target/xilinx/ckpt/
 target/xilinx/scripts/add_sources.*
 vivado*
-cva6_patched/
-deps/ara/
-deps/ara_my_fork/
-ara_patched/
-ara_myfork/
-
-# Massive Vivado Checkpoints & Build Folders
-target/xilinx/ckpt/
-cva6_patched/
-
-# Logs and Xilinx Junk
+webtalk*
+hs_err_pid*
+.Xil/
+*.dcp
+*.bit
+*.ltx
 *.log
 *.jou
-webtalk.*
-hs_err_pid*.log
+
+# Local working files: notes, measurements, experiments, archives
+/*.md
+!/README.md
+!/CHANGELOG.md
+/*.txt
+!/requirements.txt
+/*.csv
+/*.png
+bitstream_archive/
+axi_upsizer_work/
+_scratch/
 
 # Backups
 *.bak
-*.bak_*
+*.bak*
+Bender.lock.*
 
-# Text Notes / IDEs
-*.txt
-AGENT_NOTES*.md
-fpga_port_archive.md
+# Editors, assistants, virtualenvs
 .vscode/
 .claude/
-
-# Heavy dependencies and caches
-.bender/
-deps/ara/
-deps/ara_my_fork/
-
-# Vivado build directories and checkpoints
-target/xilinx/build/
-target/xilinx/ckpt/
-*.dcp
-*.bit
-*.bin
-
-_scratch/
+.codex/
+.agents/
+.venv/
+__pycache__/

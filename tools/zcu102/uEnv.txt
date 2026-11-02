@@ -1,0 +1,1 @@
+bootargs=earlycon console=ttyPS0,115200 clk_ignore_unused init_fatal_sh=1 mem=1024M

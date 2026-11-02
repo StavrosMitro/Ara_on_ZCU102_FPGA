@@ -6,5 +6,7 @@
 	path = sw/deps/cva6-sdk
 	url = https://github.com/pulp-platform/cva6-sdk.git
 	ignore = dirty
-[submodule "core/cache_subsystem/hpdcache"]
-	url = https://your_username:your_token@github.com/paulsc96/cv-hpdcache.git
+[submodule "deps/ara"]
+	path = deps/ara
+	url = https://github.com/StavrosMitro/ara_zcu102_working.git
+	branch = dev-zcu102-v2debug

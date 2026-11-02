@@ -1,3 +1,0 @@
-app,config,shape,batch,run1,run2,run3,spike_fp16_ref,fp32_sibling_spike,rel_err_vs_fp16_pct
-fc_layer16only,L4_V2048_LLC128K,fc1_1536x192,4,1.322266,1.322266,1.322266,1.314453,1.321975,0.594
-conv_layer16only,L4_V2048_LLC128K,conv2_12x12_32x32_k3,4,0.723053,0.723053,0.723053,0.723053,0.723055,0.0

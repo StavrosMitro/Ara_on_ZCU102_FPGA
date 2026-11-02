@@ -18,7 +18,7 @@ packages:
     revision: e977bb1be465c27a2a2b8cbc34830b4796af9ccf
     version: null
     source:
-      Path: /home/smitropoulos/ara_patched
+      Path: deps/ara
     dependencies:
     - apb
     - axi
@@ -29,7 +29,7 @@ packages:
     revision: ac5deb3ff086aa34b168f392c051e92603d6c0e2
     version: 0.39.2
     source:
-      Path: /home/smitropoulos/cheshire_soc/axi_patched
+      Path: axi_patched
     dependencies:
     - common_cells
     - common_verification
@@ -106,7 +106,7 @@ packages:
     revision: b729cb63632c1cc20d51f26ba351e80c5f52bafb
     version: null
     source:
-      Path: /home/smitropoulos/cheshire_soc/cva6_patched
+      Path: cva6_patched
     dependencies:
     - axi
     - common_cells
@@ -138,7 +138,7 @@ packages:
     revision: ca1b28816a3706be0bf9ce01378246d5346384f0
     version: null
     source:
-      Path: /home/smitropoulos/cheshire_soc/idma_patched
+      Path: idma_patched
     dependencies:
     - axi
     - common_cells

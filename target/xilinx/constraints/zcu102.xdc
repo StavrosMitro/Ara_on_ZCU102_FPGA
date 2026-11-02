@@ -12,7 +12,10 @@ create_clock -period $SYS_TCK -name sys_clk [get_ports sys_clk_p]
 
 # Το εσωτερικό ρολόι του SoC (50 MHz) που βγαίνει από το clock wizard
 set SOC_TCK 20.0
-set soc_clk [get_clocks -of_objects [get_pins i_clkwiz/clk_50]]
+# Looked up by NET, not by the clkwiz pin: with the clock knob (soc_mhz=/hp0_mhz=)
+# soc_clk comes from an MMCM in cheshire_top_xilinx.sv and i_clkwiz does not exist.
+# Same clock either way (the net is the BUFG output feeding the whole SoC).
+set soc_clk [get_clocks -of_objects [get_nets soc_clk]]
 set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets soc_clk]
 
 ###############

@@ -248,6 +248,24 @@ module dram_wrapper_xilinx #(
     assign iresizer_cdc_rsp = cdc_dram_rsp;
   end
 
+`ifdef PROBE_DDR  // build knob: make ... probes=ddr   (cheshire: deps/ara/cheshire/Makefile)
+  ///////////////////////////////////////////////////////////////////////////
+  //  ILA PROBES -- point H: input of i_axi_cdc_mig, soc_clk domain.       //
+  //  Between L3 (LLC master port) and the PS:                             //
+  //    L3 -> H        dw upsizer + iw converter (PL, soc_clk cycles)      //
+  //    H AR -> R_LAST CDC + HP0 port + PS interconnect + DDRC + DRAM      //
+  //  Same 5 signals and names as every round-4 AXI point, so ila_decode.py //
+  //  pairs them the same way. soc_clk domain even when hp0_mhz= moves    //
+  //  the DRAM side of the CDC, so the one soc_clk ILA can sample it.      //
+  ///////////////////////////////////////////////////////////////////////////
+  (* mark_debug = "true" *) logic dbg_h_arv, dbg_h_arr, dbg_h_rv, dbg_h_rr, dbg_h_rl;
+  assign dbg_h_arv = iresizer_cdc_req.ar_valid;
+  assign dbg_h_arr = iresizer_cdc_rsp.ar_ready;
+  assign dbg_h_rv  = iresizer_cdc_rsp.r_valid;
+  assign dbg_h_rr  = iresizer_cdc_req.r_ready;
+  assign dbg_h_rl  = iresizer_cdc_rsp.r.last;
+`endif // PROBE_DDR
+
   ////////////////////////////////
   //  Map User, Resize Address  //
   ////////////////////////////////
@@ -407,10 +425,21 @@ module dram_wrapper_xilinx #(
 `ifdef USE_ZYNQMP
 
 //inside clock on system connected
+`ifdef HP0_MHZ
+  // Clock knob hp0_mhz=<f>: HP0 and the DRAM side of i_axi_cdc_mig run on
+  // hp0_clk (passed in as dram_clk_i, unused otherwise on ZynqMP). soc_clk and
+  // hp0_clk come from the same MMCM, so Vivado times the CDC and the reset
+  // below as related clocks, stricter than the async FIFO needs.
+  assign dram_axi_clk = dram_clk_i;
+  assign dram_rst_o   = ~soc_resetn_i;
+
+  assign ps_hp0_aclk    = dram_clk_i;
+`else
   assign dram_axi_clk = soc_clk_i;
   assign dram_rst_o   = ~soc_resetn_i;
 
   assign ps_hp0_aclk    = soc_clk_i;
+`endif
 
   assign ps_hp0_awid    = cdc_dram_req.aw.id;
   assign ps_hp0_awaddr  = cdc_dram_req_aw_addr;

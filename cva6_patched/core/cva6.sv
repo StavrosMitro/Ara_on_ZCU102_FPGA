@@ -659,11 +659,13 @@ module cva6
   // non-blocking and responses from different ports are not ordered.
   // kill_req is not optional -- the non-idempotent retry path kills requests,
   // and without it a killed request looks like an unanswered one.
+`ifdef PROBE_MEM  // build knob: make ... probes=mem   (see deps/ara/cheshire/Makefile)
   (* mark_debug = "true" *) logic dbg_d1_req, dbg_d1_gnt, dbg_d1_rvalid, dbg_d1_kill;
   assign dbg_d1_req    = dcache_req_ports_ex_cache[1].data_req;
   assign dbg_d1_kill   = dcache_req_ports_ex_cache[1].kill_req;
   assign dbg_d1_gnt    = dcache_req_ports_cache_ex[1].data_gnt;
   assign dbg_d1_rvalid = dcache_req_ports_cache_ex[1].data_rvalid;
+`endif // PROBE_MEM
   // =========================================================
 
   //RVFI

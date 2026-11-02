@@ -252,6 +252,56 @@ module cheshire_top_xilinx import cheshire_pkg::*; (
     .O  ( sys_clk   )
   );
 
+`ifdef HP0_MHZ
+`ifndef SOC_MHZ
+  `define SOC_MHZ 50       // hp0_mhz= alone: SoC stays at 50, HP0 moves
+`endif
+`endif
+`ifdef SOC_MHZ
+  // Clock knob, OFF by default (deps/ara/cheshire/Makefile: soc_mhz= / hp0_mhz=).
+  // With a knob set, the clkwiz IP is NOT used: one MMCM instantiated right here,
+  // same input and VCO as the clkwiz (300 MHz x4 = 1200 MHz), each output an
+  // integer divide of 1200 -- the Makefile only accepts such frequencies.
+  // Without a knob this whole block is skipped and the original clkwiz below is
+  // compiled unchanged, so default builds and the cached clkwiz IP are untouched.
+  //   CLKOUT0  soc_clk   1200 / SOC_MHZ
+  //   CLKOUT1  usb_clk   1200 / 25 = 48 MHz   (as clk_48 of the clkwiz)
+  //   CLKOUT2  hp0_clk   1200 / HP0_MHZ       (only with `HP0_MHZ)
+  // The BUFG outputs drive the nets soc_clk / usb_clk DIRECTLY so they keep their
+  // names: zcu102.xdc and insert_ilas {soc_clk} look soc_clk up by name.
+`ifdef HP0_MHZ
+  wire hp0_clk;
+  localparam int unsigned Hp0Div = 1200 / `HP0_MHZ;
+`else
+  localparam int unsigned Hp0Div = 12;        // output unused
+`endif
+  wire soc_clk_mmcm, usb_clk_mmcm, hp0_clk_mmcm, clkgen_fb;
+  MMCME4_BASE #(
+    .CLKIN1_PERIOD    ( 3.333                 ),
+    .DIVCLK_DIVIDE    ( 1                     ),
+    .CLKFBOUT_MULT_F  ( 4.0                   ),
+    .CLKOUT0_DIVIDE_F ( 1200.0 / `SOC_MHZ     ),
+    .CLKOUT1_DIVIDE   ( 25                    ),
+    .CLKOUT2_DIVIDE   ( Hp0Div                )
+  ) i_clkgen (
+    .CLKIN1   ( sys_clk      ),
+    .CLKFBIN  ( clkgen_fb    ),
+    .CLKFBOUT ( clkgen_fb    ),
+    .CLKOUT0  ( soc_clk_mmcm ),
+    .CLKOUT1  ( usb_clk_mmcm ),
+    .CLKOUT2  ( hp0_clk_mmcm ),
+    .LOCKED   ( mmcm_locked  ),
+    .PWRDWN   ( 1'b0         ),
+    .RST      ( 1'b0         ),
+    .CLKFBOUTB(), .CLKOUT0B(), .CLKOUT1B(), .CLKOUT2B(),
+    .CLKOUT3(), .CLKOUT3B(), .CLKOUT4(), .CLKOUT5(), .CLKOUT6()
+  );
+  BUFG i_bufg_soc_clk ( .I ( soc_clk_mmcm ), .O ( soc_clk ) );
+  BUFG i_bufg_usb_clk ( .I ( usb_clk_mmcm ), .O ( usb_clk ) );
+`ifdef HP0_MHZ
+  BUFG i_bufg_hp0_clk ( .I ( hp0_clk_mmcm ), .O ( hp0_clk ) );
+`endif
+`else
   clkwiz i_clkwiz (
     .clk_in1  ( sys_clk ),
   //.locked   ( ),                 // ILA-DEBUG: was unconnected
@@ -261,6 +311,7 @@ module cheshire_top_xilinx import cheshire_pkg::*; (
     .clk_20   ( ),
     .clk_10   ( )
   );
+`endif
 
   /////////////////////
   //  System Inputs  //
@@ -494,6 +545,16 @@ module cheshire_top_xilinx import cheshire_pkg::*; (
   logic rtc_clk_d, rtc_clk_q;
   logic [15:0] counter_d, counter_q;
 
+`ifdef SOC_MHZ
+  // Divide soc_clk (SOC_MHZ MHz) by SOC_MHZ => 1 MHz RTC clock, same as at 50.
+  // SOC_MHZ may be odd, so a toggle every SOC_MHZ/2 cycles would not be 1 MHz:
+  // count a full period instead and hold rtc high for its first SOC_MHZ/2 cycles.
+  localparam int unsigned SocMhz = `SOC_MHZ;
+  always_comb begin
+    counter_d = (counter_q == SocMhz - 1) ? '0 : counter_q + 1;
+    rtc_clk_d = (counter_d < SocMhz / 2);
+  end
+`else
   // Divide soc_clk (50 MHz) by 50 => 1 MHz RTC Clock
   always_comb begin
     counter_d = counter_q + 1;
@@ -504,6 +565,7 @@ module cheshire_top_xilinx import cheshire_pkg::*; (
       rtc_clk_d = ~rtc_clk_q;
     end
   end
+`endif
 
   always_ff @(posedge soc_clk, negedge rst_n) begin
     if(~rst_n) begin
@@ -548,7 +610,11 @@ module cheshire_top_xilinx import cheshire_pkg::*; (
     .sys_rst_i      ( sys_rst          ),
     .soc_resetn_i   ( rst_n            ),
     .soc_clk_i      ( soc_clk          ),
+`ifdef HP0_MHZ
+    .dram_clk_i     ( hp0_clk          ),   // ZynqMP: clocks HP0 + CDC dst side
+`else
     .dram_clk_i     ( sys_clk          ),
+`endif
     .soc_req_i      ( axi_llc_mst_req  ),
     .soc_rsp_o      ( axi_llc_mst_rsp  ),
 `ifdef USE_ZYNQMP

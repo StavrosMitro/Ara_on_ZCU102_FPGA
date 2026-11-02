@@ -532,12 +532,14 @@ module cheshire_soc import cheshire_pkg::*; #(
     // No ar.id is probed: the sd+fence+csrr barrier in the test binaries
     // guarantees ONE outstanding transaction, and the 16 B (single cache
     // line) test guarantees one AR and one R_LAST per measurement.
+`ifdef PROBE_MEM  // build knob: make ... probes=mem   (see deps/ara/cheshire/Makefile)
     (* mark_debug = "true" *) logic dbg_l2_arv, dbg_l2_arr, dbg_l2_rv, dbg_l2_rr, dbg_l2_rl;
     assign dbg_l2_arv = axi_llc_remap_req.ar_valid;
     assign dbg_l2_arr = axi_llc_remap_rsp.ar_ready;
     assign dbg_l2_rv  = axi_llc_remap_rsp.r_valid;
     assign dbg_l2_rr  = axi_llc_remap_req.r_ready;
     assign dbg_l2_rl  = axi_llc_remap_rsp.r.last;
+`endif // PROBE_MEM
     // =========================================================
 
     axi_llc_reg_wrap #(
@@ -2136,11 +2138,13 @@ module cheshire_soc import cheshire_pkg::*; #(
   //  direction, LLC pipeline 8.  C1->X minus A1->X is the cost of          //
   //  axi_id_serialize, which sits on CVA6's path and not on Ara's.         //
   //                                                                       //
-  //  Remove by deleting these blocks; common.tcl's insert_ilas returns     //
-  //  immediately when no mark_debug nets remain, so nothing else changes.  //
+  //  SWITCHABLE: compiled only with `define PROBE_MEM (make probes=mem). //
+  //  With no PROBE_* define there are no mark_debug nets, and common.tcl's //
+  //  insert_ilas adds no ILA at all -- zero area, zero timing impact.      //
   //  Pre-probe snapshot: /home/stavros/bitstreams/probes_snapshot_*/       //
   ///////////////////////////////////////////////////////////////////////////
 
+`ifdef PROBE_MEM  // build knob: make ... probes=mem
   // ---- C1: CVA6 at the crossbar input (after axi_id_serialize) ----------
   (* mark_debug = "true" *) logic dbg_c1_arv, dbg_c1_arr, dbg_c1_rv, dbg_c1_rr, dbg_c1_rl;
   assign dbg_c1_arv = axi_in_req[AxiIn.cores[0]].ar_valid;
@@ -2175,5 +2179,33 @@ module cheshire_soc import cheshire_pkg::*; #(
   assign dbg_l3_rv  = axi_llc_mst_rsp_i.r_valid;
   assign dbg_l3_rr  = axi_llc_mst_req_o.r_ready;
   assign dbg_l3_rl  = axi_llc_mst_rsp_i.r.last;
+`endif // PROBE_MEM
+
+`ifdef PROBE_VEC  // build knob: make ... probes=vec
+  ///////////////////////////////////////////////////////////////////////////
+  //  ILA PROBES  -- CVA6 <-> Ara accelerator handshake                    //
+  //                                                                       //
+  //  Pairs with the PROBE_VEC block in ara_patched/.../ara_sequencer.sv.  //
+  //  Together they split a vector instruction's life into:                //
+  //    V0  CVA6 offers it to Ara      acc_req_valid & acc_req_ready       //
+  //    Q0  sequencer takes it in      (ara_sequencer: dbg_q_acc)          //
+  //    Q1  issued to its unit         (dbg_q_iss_ld / dbg_q_iss_sl)       //
+  //    Q2  unit reports done          (dbg_q_done_ld / dbg_q_done_sl)     //
+  //    V1  Ara answers CVA6           acc_resp_valid                      //
+  //    V2  memory op retired          acc_load_complete / store_complete  //
+  //  Round 4 could only see the AXI part of a load and called the rest    //
+  //  "dispatch+retire, ~15 cycles". These points measure it directly,     //
+  //  and they are the only way to time a slide at all: a slide never      //
+  //  touches memory, and the sd+fence barrier only waits for memory ops.  //
+  ///////////////////////////////////////////////////////////////////////////
+  (* mark_debug = "true" *) logic dbg_v_reqv, dbg_v_reqr, dbg_v_respv, dbg_v_respr;
+  (* mark_debug = "true" *) logic dbg_v_ldcpl, dbg_v_stcpl;
+  assign dbg_v_reqv  = acc_req.acc_req.req_valid;
+  assign dbg_v_reqr  = acc_resp.acc_resp.req_ready;
+  assign dbg_v_respv = acc_resp.acc_resp.resp_valid;
+  assign dbg_v_respr = acc_req.acc_req.resp_ready;
+  assign dbg_v_ldcpl = acc_resp.acc_resp.load_complete;
+  assign dbg_v_stcpl = acc_resp.acc_resp.store_complete;
+`endif // PROBE_VEC
 
 endmodule
