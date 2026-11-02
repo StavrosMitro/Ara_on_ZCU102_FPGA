@@ -25,7 +25,6 @@ clocks and ILA probes are all build-time knobs.
 
 ```bash
 git clone https://github.com/StavrosMitro/cheshire_ara.git && cd cheshire_ara
-git checkout fp16_v4_dma_spm
 git submodule update --init deps/ara
 bender checkout
 cd deps/ara/cheshire

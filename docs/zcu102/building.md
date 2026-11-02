@@ -23,7 +23,6 @@ count.
 ```bash
 git clone https://github.com/StavrosMitro/cheshire_ara.git
 cd cheshire_ara
-git checkout fp16_v4_dma_spm
 git submodule update --init deps/ara      # Ara: RTL, build knobs, apps
 bender checkout                           # all other hardware dependencies
 ```

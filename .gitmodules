@@ -9,4 +9,4 @@
 [submodule "deps/ara"]
 	path = deps/ara
 	url = https://github.com/StavrosMitro/ara_zcu102_working.git
-	branch = dev-zcu102-v2debug
+	branch = main
