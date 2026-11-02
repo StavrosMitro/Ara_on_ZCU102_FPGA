@@ -6,7 +6,25 @@
 	path = sw/deps/cva6-sdk
 	url = https://github.com/pulp-platform/cva6-sdk.git
 	ignore = dirty
-[submodule "deps/ara"]
-	path = deps/ara
-	url = https://github.com/StavrosMitro/ara_zcu102_working.git
-	branch = main
+[submodule "deps/ara/cheshire/sw/cva6-sdk"]
+	path = deps/ara/cheshire/sw/cva6-sdk
+	url = https://github.com/moimfeld/cva6-sdk.git
+[submodule "deps/ara/toolchain/newlib"]
+	path = deps/ara/toolchain/newlib
+	url = https://sourceware.org/git/newlib-cygwin.git
+	ignore = dirty
+[submodule "deps/ara/toolchain/riscv-gnu-toolchain"]
+	path = deps/ara/toolchain/riscv-gnu-toolchain
+	url = https://github.com/riscv/riscv-gnu-toolchain.git
+	ignore = dirty
+[submodule "deps/ara/toolchain/riscv-isa-sim"]
+	path = deps/ara/toolchain/riscv-isa-sim
+	url = https://github.com/riscv/riscv-isa-sim.git
+	ignore = dirty
+[submodule "deps/ara/toolchain/riscv-llvm"]
+	path = deps/ara/toolchain/riscv-llvm
+	url = https://github.com/llvm/llvm-project.git
+	ignore = dirty
+[submodule "deps/ara/toolchain/verilator"]
+	path = deps/ara/toolchain/verilator
+	url = https://github.com/verilator/verilator
