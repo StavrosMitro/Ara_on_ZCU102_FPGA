@@ -40,6 +40,7 @@ RTL, the build knobs, the bare-metal apps and the scripts that drive the board.
 | `deps/ara/config/` | lane/VLEN configurations for the apps |
 | `cva6_patched/`, `axi_patched/`, `idma_patched/` | patched CVA6, AXI and iDMA |
 | `tools/zcu102/` | JTAG programming script, SD-card helper scripts, DDR loader, `uEnv.txt`, sweep runner |
+| `reports/` | post-route utilization reports of every archived bitstream, with a summary table |
 
 ### SoC configuration
 
@@ -151,7 +152,8 @@ make ara-chs-xilinx BOARD=zcu102 MODE=batch VIVADO="vivado" \
 An ILA costs about 8–10k LUTs. Compare area and timing only between builds with
 the same `probes` setting.
 
-Reference numbers (50 MHz, no probes, FP16):
+Reference numbers (50 MHz, no probes, FP16). Every archived build is listed, with its full
+hierarchical utilization report, in [`reports/`](reports/README.md):
 
 | Config | LUT | RAMB36 | WNS |
 |---|---|---|---|
